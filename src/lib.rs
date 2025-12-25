@@ -1,30 +1,48 @@
-//! # Redpowder - SDK para Redstone OS
+//! # Redpowder SDK - The User-Space Foundation
 //!
-//! Kit de desenvolvimento oficial para criar aplicações no Redstone OS.
+//! # Análise Arquitetural Profunda
 //!
-//! ## Uso Rápido
+//! **Redpowder** é a "Standard Library" (ou CRT - C Runtime) do Redstone OS.
+//! O Kernel (Forge) fala apenas Syscalls e ABI binária. O Redpowder traduz isso para
+//! Rust seguro. Todo serviço (Init, VFS) e todo App (Shell, Editor) depende desta crate.
 //!
-//! ```rust
-//! #![no_std]
-//! #![no_main]
+//! ## Estrutura e Funcionamento
 //!
-//! use redpowder::prelude::*;
+//! 1.  **Syscall Wrapper**: Converte chamadas de função Rust (`File::open`) em instruções
+//!     de processador (`syscall` / `int 0x80`).
+//! 2.  **Runtime Initialization**: O `_start` das aplicações não é a `main()`. O Redpowder fornece
+//!     o código de "crt0" que inicializa o Heap, Argumentos (argv) e Variáveis de Ambiente antes do `main`.
+//! 3.  **Heap Allocator**: Fornece um `GlobalAllocator` para que `Vec` e `Box` funcionem em user-space.
 //!
-//! #[no_mangle]
-//! pub extern "C" fn _start() -> ! {
-//!     println!("Hello from Redstone OS!");
-//!     sys_exit(0);
-//! }
-//! ```
+//! ## Análise Crítica (Kernel Engineer Review)
 //!
-//! ## Módulos
+//! ### ✅ O que está bem feito (Conceitual)
+//! *   **No-Std by Design**: Garante que o SDK seja leve e não arraste dependências ocultas.
+//! *   **Modularidade**: Separa claramente IPC, Memória e Syscalls.
 //!
-//! - [`syscall`] - Wrappers para syscalls do kernel
-//! - [`io`] - Input/Output (console, arquivos)
-//! - [`memory`] - Alocação de memória
-//! - [`ipc`] - Comunicação entre processos
-//! - [`time`] - Funções de tempo
-//! - [`prelude`] - Re-exports convenientes
+//! ### ❌ O que está mal feito / Riscos Atuais
+//! *   **Sync Syscalls Only**: Todas as syscalls parecem ser bloqueantes.
+//!     *   *Risco*: UI congela se o disco for lento. Precisamos de `async/await` no nível do SDK.
+//! *   **Lack of Unwinding**: Se um programa panica, ele aborta (`panic=abort`).
+//!     *   *Impacto*: Difícil logar stack trace ou limpar recursos (RAII) em caso de crash.
+//!
+//! ### ⚠️ Problemas de Arquitetura & Segurança
+//! *   **Raw Pointers**: A API de `syscall` expõe ponteiros crus inseguros.
+//!     O Redpowder deve encapsular isso em referências seguras (`&str`, `&[u8]`).
+//!
+//! # Guia de Implementação (TODOs)
+//!
+//! ## 1. Runtime Entry Point (crt0) (Urgency: Critical)
+//! // TODO: Implementar `_start` genérico que chama `main`.
+//! // - Motivo: O desenvolvedor de app não deveria escrever `extern "C" _start`.
+//!
+//! ## 2. Async Runtime (Urgency: High)
+//! // TODO: Implementar um Executor simples (tipo `smol` ou `embassy`) em user-space.
+//! // - Impacto: Permitir IO não bloqueante (essencial para GUI e Networking).
+//!
+//! ## 3. Dynamic Linker Support (Future)
+//! // TODO: Preparar para carregar bibliotecas dinâmicas (`.so` / `.dll`).
+//! // - Motivo: Economizar RAM compartilhando código entre processos.
 
 #![no_std]
 #![feature(asm_const)]
