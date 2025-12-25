@@ -6,3 +6,12 @@ edition = "2021"
 description = "SDK / Devkit para Redstone OS"
 license = "MIT"
 repository = "https://github.com/redstone-os/redpowder"
+documentation = "https://docs.rs/redpowder"
+readme = "README.md"
+keywords = ["os", "kernel", "syscall", "redstone", "no_std"]
+categories = ["no-std", "os"]
+
+[dependencies]
+
+[features]
+default = []
