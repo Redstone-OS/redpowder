@@ -1,7 +1,7 @@
 [package]
 name = "redpowder"
 version = "0.1.0"
-authors = ["João Victor <joaonhk@gmail.com>"]
+authors = ["MikeLanDSBR <contato@mikelandsbr.com.br>"]
 edition = "2021"
 description = "SDK / Devkit para Redstone OS"
 license = "MIT"
