@@ -1,58 +1,48 @@
-//! # Redpowder SDK - The User-Space Foundation
+//! # Redpowder SDK
 //!
-//! # Análise Arquitetural Profunda
+//! SDK para desenvolvimento userland no Redstone OS.
 //!
-//! **Redpowder** é a "Standard Library" (ou CRT - C Runtime) do Redstone OS.
-//! O Kernel (Forge) fala apenas Syscalls e ABI binária. O Redpowder traduz isso para
-//! Rust seguro. Todo serviço (Init, VFS) e todo App (Shell, Editor) depende desta crate.
+//! ## Filosofia
+//! - **No-std**: Zero dependências de runtime
+//! - **Type-safe**: Handles tipados, erros explícitos
+//! - **Capability-based**: Segue modelo do kernel
 //!
-//! ## Estrutura e Funcionamento
+//! ## Módulos
 //!
-//! 1.  **Syscall Wrapper**: Converte chamadas de função Rust (`File::open`) em instruções
-//!     de processador (`syscall` / `int 0x80`).
-//! 2.  **Runtime Initialization**: O `_start` das aplicações não é a `main()`. O Redpowder fornece
-//!     o código de "crt0" que inicializa o Heap, Argumentos (argv) e Variáveis de Ambiente antes do `main`.
-//! 3.  **Heap Allocator**: Fornece um `GlobalAllocator` para que `Vec` e `Box` funcionem em user-space.
-//!
-//! ## Análise Crítica (Kernel Engineer Review)
-//!
-//! ### ✅ O que está bem feito (Conceitual)
-//! *   **No-Std by Design**: Garante que o SDK seja leve e não arraste dependências ocultas.
-//! *   **Modularidade**: Separa claramente IPC, Memória e Syscalls.
-//!
-//! ### ❌ O que está mal feito / Riscos Atuais
-//! *   **Sync Syscalls Only**: Todas as syscalls parecem ser bloqueantes.
-//!     *   *Risco*: UI congela se o disco for lento. Precisamos de `async/await` no nível do SDK.
-//! *   **Lack of Unwinding**: Se um programa panica, ele aborta (`panic=abort`).
-//!     *   *Impacto*: Difícil logar stack trace ou limpar recursos (RAII) em caso de crash.
-//!
-//! ### ⚠️ Problemas de Arquitetura & Segurança
-//! *   **Raw Pointers**: A API de `syscall` expõe ponteiros crus inseguros.
-//!     O Redpowder deve encapsular isso em referências seguras (`&str`, `&[u8]`).
-//!
-//! # Guia de Implementação (TODOs)
-//!
-//! ## 1. Runtime Entry Point (crt0) (Urgency: Critical)
-//! // TODO: Implementar `_start` genérico que chama `main`.
-//! // - Motivo: O desenvolvedor de app não deveria escrever `extern "C" _start`.
-//!
-//! ## 2. Async Runtime (Urgency: High)
-//! // TODO: Implementar um Executor simples (tipo `smol` ou `embassy`) em user-space.
-//! // - Impacto: Permitir IO não bloqueante (essencial para GUI e Networking).
-//!
-//! ## 3. Dynamic Linker Support (Future)
-//! // TODO: Preparar para carregar bibliotecas dinâmicas (`.so` / `.dll`).
-//! // - Motivo: Economizar RAM compartilhando código entre processos.
+//! | Módulo | Função |
+//! |--------|--------|
+//! | `syscall` | Invocação de syscalls (inline asm) |
+//! | `fs` | Arquivos (open, read, write, close) |
+//! | `process` | Processos (exit, spawn, yield) |
+//! | `mem` | Memória (alloc, free, map) |
+//! | `ipc` | IPC (Port, send, recv) |
+//! | `time` | Tempo (sleep, clock) |
+//! | `io` | Handle, Rights |
+//! | `event` | poll |
+//! | `sys` | sysinfo, debug |
 
 #![no_std]
 
-// Módulos públicos
+// === Módulos ===
+pub mod event;
+pub mod fs;
 pub mod io;
 pub mod ipc;
-pub mod memory;
-pub mod prelude;
+pub mod mem;
+pub mod process;
+pub mod sys;
 pub mod syscall;
 pub mod time;
 
-// Re-exports principais
+// === Prelude ===
+pub mod prelude {
+    pub use crate::fs::File;
+    pub use crate::io::{Handle, HandleRights};
+    pub use crate::ipc::Port;
+    pub use crate::process::{exit, getpid, yield_now};
+    pub use crate::syscall::{SysError, SysResult};
+    pub use crate::time::sleep;
+}
+
+// === Re-exports ===
 pub use syscall::{SysError, SysResult};
