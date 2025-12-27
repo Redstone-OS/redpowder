@@ -45,4 +45,8 @@ pub const SYS_POLL: usize = 0x80;
 
 // === SISTEMA (0xF0-0xFF) ===
 pub const SYS_SYSINFO: usize = 0xF0;
+pub const SYS_REBOOT: usize = 0xF1;
+pub const SYS_POWEROFF: usize = 0xF2;
+pub const SYS_CONSOLE_WRITE: usize = 0xF3;
+pub const SYS_CONSOLE_READ: usize = 0xF4;
 pub const SYS_DEBUG: usize = 0xFF;

@@ -12,6 +12,7 @@
 //! | Módulo | Função |
 //! |--------|--------|
 //! | `syscall` | Invocação de syscalls (inline asm) |
+//! | `console` | print!, println!, reboot, poweroff |
 //! | `fs` | Arquivos (open, read, write, close) |
 //! | `process` | Processos (exit, spawn, yield) |
 //! | `mem` | Memória (alloc, free, map) |
@@ -24,6 +25,7 @@
 #![no_std]
 
 // === Módulos ===
+pub mod console;
 pub mod event;
 pub mod fs;
 pub mod io;
@@ -36,9 +38,12 @@ pub mod time;
 
 // === Prelude ===
 pub mod prelude {
+    pub use crate::console::{poweroff, reboot};
     pub use crate::fs::File;
     pub use crate::io::{Handle, HandleRights};
     pub use crate::ipc::Port;
+    pub use crate::print;
+    pub use crate::println;
     pub use crate::process::{exit, getpid, yield_now};
     pub use crate::syscall::{SysError, SysResult};
     pub use crate::time::sleep;
