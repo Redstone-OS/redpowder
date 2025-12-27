@@ -45,7 +45,6 @@
 //! // - Motivo: Economizar RAM compartilhando código entre processos.
 
 #![no_std]
-#![feature(asm_const)]
 
 // Módulos públicos
 pub mod io;
