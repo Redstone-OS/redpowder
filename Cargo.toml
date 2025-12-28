@@ -11,6 +11,11 @@ readme = "README.md"
 keywords = ["os", "kernel", "syscall", "redstone", "no_std"]
 categories = ["no-std", "os"]
 
+[lib]
+harness = false
+test = false
+bench = false
+
 [dependencies]
 
 [features]
