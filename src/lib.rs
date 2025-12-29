@@ -21,6 +21,8 @@
 //! | `io` | Handle, Rights |
 //! | `event` | poll |
 //! | `sys` | sysinfo, debug |
+//! | `graphics` | Framebuffer, cores, desenho |
+//! | `input` | Mouse, teclado |
 
 #![no_std]
 
@@ -28,6 +30,8 @@
 pub mod console;
 pub mod event;
 pub mod fs;
+pub mod graphics;
+pub mod input;
 pub mod io;
 pub mod ipc;
 pub mod mem;
@@ -47,6 +51,9 @@ pub mod prelude {
     pub use crate::process::{exit, getpid, yield_now};
     pub use crate::syscall::{SysError, SysResult};
     pub use crate::time::sleep;
+    // Gráficos e Input
+    pub use crate::graphics::{Color, Framebuffer, FramebufferInfo};
+    pub use crate::input::{poll_mouse, KeyEvent, MouseState};
 }
 
 // === Re-exports ===

@@ -27,6 +27,13 @@ pub const SYS_CREATE_PORT: usize = 0x30;
 pub const SYS_SEND_MSG: usize = 0x31;
 pub const SYS_RECV_MSG: usize = 0x32;
 
+// === GRÁFICOS / INPUT (0x40-0x4F) ===
+pub const SYS_FB_INFO: usize = 0x40;
+pub const SYS_FB_WRITE: usize = 0x41;
+pub const SYS_FB_CLEAR: usize = 0x42;
+pub const SYS_MOUSE_READ: usize = 0x48;
+pub const SYS_KEYBOARD_READ: usize = 0x49;
+
 // === TEMPO (0x50-0x5F) ===
 pub const SYS_CLOCK_GET: usize = 0x50;
 pub const SYS_SLEEP: usize = 0x51;
