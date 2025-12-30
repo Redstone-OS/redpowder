@@ -19,9 +19,15 @@ pub struct Port {
 }
 
 impl Port {
-    /// Cria nova porta
-    pub fn create(capacity: usize) -> SysResult<Self> {
-        let ret = syscall1(SYS_CREATE_PORT, capacity);
+    /// Cria nova porta nomeada
+    pub fn create(name: &str, capacity: usize) -> SysResult<Self> {
+        let ret = syscall4(
+            SYS_CREATE_PORT,
+            name.as_ptr() as usize,
+            name.len(),
+            capacity,
+            0,
+        );
         let handle = Handle::from_raw(check_error(ret)? as u32);
         Ok(Self { handle })
     }
