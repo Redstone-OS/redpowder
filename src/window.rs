@@ -2,7 +2,7 @@
 //!
 //! Protocolo de comunicação entre clientes (apps) e compositor.
 
-use crate::ipc::{Port, SharedMemory, ShmId};
+use crate::ipc::{Port, SharedMemory};
 use crate::syscall::SysResult;
 
 // ============================================================================
