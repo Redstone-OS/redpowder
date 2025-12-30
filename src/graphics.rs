@@ -30,7 +30,7 @@ impl Color {
     pub const RED: Color = Color(0xFF0000);
     pub const GREEN: Color = Color(0x00FF00);
     pub const BLUE: Color = Color(0x0000FF);
-    pub const ORANGE: Color = Color(0xFF8C00); // Cor principal do Redstone!
+    pub const ORANGE: Color = Color(0xEE6A50); // Coral Redstone!
     pub const DARK_GRAY: Color = Color(0x333333);
     pub const LIGHT_GRAY: Color = Color(0xAAAAAA);
 
