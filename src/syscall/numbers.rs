@@ -26,6 +26,9 @@ pub const SYS_CHECK_RIGHTS: usize = 0x22;
 pub const SYS_CREATE_PORT: usize = 0x30;
 pub const SYS_SEND_MSG: usize = 0x31;
 pub const SYS_RECV_MSG: usize = 0x32;
+pub const SYS_SHM_CREATE: usize = 0x35;
+pub const SYS_SHM_MAP: usize = 0x36;
+pub const SYS_PORT_CONNECT: usize = 0x37;
 
 // === GRÁFICOS / INPUT (0x40-0x4F) ===
 pub const SYS_FB_INFO: usize = 0x40;

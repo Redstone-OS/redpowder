@@ -23,6 +23,7 @@
 //! | `sys` | sysinfo, debug |
 //! | `graphics` | Framebuffer, cores, desenho |
 //! | `input` | Mouse, teclado |
+//! | `window` | Janelas |
 
 #![no_std]
 
@@ -39,6 +40,7 @@ pub mod process;
 pub mod sys;
 pub mod syscall;
 pub mod time;
+pub mod window;
 
 // === Prelude ===
 pub mod prelude {

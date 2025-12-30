@@ -1,10 +1,11 @@
 //! # IPC - Inter-Process Communication
 //!
-//! Comunicação entre processos via portas.
+//! Comunicação entre processos via portas e memória compartilhada.
 
 use crate::io::Handle;
-use crate::syscall::{check_error, syscall1, syscall4, SysResult};
+use crate::syscall::{check_error, syscall1, syscall2, syscall4, SysResult};
 use crate::syscall::{SYS_CREATE_PORT, SYS_RECV_MSG, SYS_SEND_MSG};
+use crate::syscall::{SYS_PORT_CONNECT, SYS_SHM_CREATE, SYS_SHM_MAP};
 
 /// Flags de mensagem
 pub mod flags {
@@ -19,23 +20,20 @@ pub struct Port {
 
 impl Port {
     /// Cria nova porta
-    ///
-    /// # Args
-    /// - capacity: capacidade máxima de mensagens
     pub fn create(capacity: usize) -> SysResult<Self> {
         let ret = syscall1(SYS_CREATE_PORT, capacity);
         let handle = Handle::from_raw(check_error(ret)? as u32);
         Ok(Self { handle })
     }
 
+    /// Conecta a uma porta nomeada
+    pub fn connect(name: &str) -> SysResult<Self> {
+        let ret = syscall2(SYS_PORT_CONNECT, name.as_ptr() as usize, name.len());
+        let handle = Handle::from_raw(check_error(ret)? as u32);
+        Ok(Self { handle })
+    }
+
     /// Envia mensagem
-    ///
-    /// # Args
-    /// - data: dados da mensagem
-    /// - flags: flags de envio
-    ///
-    /// # Returns
-    /// Bytes enviados
     pub fn send(&self, data: &[u8], flags: u32) -> SysResult<usize> {
         let ret = syscall4(
             SYS_SEND_MSG,
@@ -48,13 +46,6 @@ impl Port {
     }
 
     /// Recebe mensagem
-    ///
-    /// # Args
-    /// - buf: buffer para receber
-    /// - timeout_ms: timeout (0 = infinito)
-    ///
-    /// # Returns
-    /// Bytes recebidos
     pub fn recv(&self, buf: &mut [u8], timeout_ms: u64) -> SysResult<usize> {
         let ret = syscall4(
             SYS_RECV_MSG,
@@ -76,5 +67,77 @@ impl Drop for Port {
     fn drop(&mut self) {
         use crate::syscall::{syscall1, SYS_HANDLE_CLOSE};
         let _ = syscall1(SYS_HANDLE_CLOSE, self.handle.raw() as usize);
+    }
+}
+
+// ============================================================================
+// SHARED MEMORY
+// ============================================================================
+
+/// ID de região de memória compartilhada
+#[derive(Debug, Clone, Copy)]
+pub struct ShmId(pub u64);
+
+/// Região de memória compartilhada mapeada
+pub struct SharedMemory {
+    id: ShmId,
+    addr: *mut u8,
+    size: usize,
+}
+
+impl SharedMemory {
+    /// Cria nova região de memória compartilhada
+    pub fn create(size: usize) -> SysResult<Self> {
+        let ret = syscall1(SYS_SHM_CREATE, size);
+        let id = ShmId(check_error(ret)? as u64);
+
+        // Mapear automaticamente
+        let ret = syscall2(SYS_SHM_MAP, id.0 as usize, 0);
+        let addr = check_error(ret)? as *mut u8;
+
+        Ok(Self { id, addr, size })
+    }
+
+    /// Abre região existente pelo ID
+    pub fn open(id: ShmId) -> SysResult<Self> {
+        let ret = syscall2(SYS_SHM_MAP, id.0 as usize, 0);
+        let addr = check_error(ret)? as *mut u8;
+
+        // Tamanho desconhecido, assume página
+        Ok(Self {
+            id,
+            addr,
+            size: 4096,
+        })
+    }
+
+    /// ID da região
+    pub fn id(&self) -> ShmId {
+        self.id
+    }
+
+    /// Ponteiro para a memória
+    pub fn as_ptr(&self) -> *const u8 {
+        self.addr
+    }
+
+    /// Ponteiro mutável para a memória
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.addr
+    }
+
+    /// Tamanho em bytes
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Acesso como slice
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.addr, self.size) }
+    }
+
+    /// Acesso como slice mutável
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        unsafe { core::slice::from_raw_parts_mut(self.addr, self.size) }
     }
 }

@@ -113,12 +113,32 @@ impl Framebuffer {
         Ok(())
     }
 
-    /// Preenche um retângulo
+    /// Preenche um retângulo (otimizado - escreve linha inteira por vez)
     pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, color: Color) -> SysResult<()> {
+        // Criar buffer para uma linha inteira
+        // Limite para não estourar stack (máximo 1024 pixels por linha)
+        let line_width = w.min(1024) as usize;
+        let mut line_buffer = [0u8; 4096]; // 1024 pixels * 4 bytes
+
+        // Preencher buffer com a cor
+        let pixel = color.0.to_le_bytes();
+        for i in 0..line_width {
+            line_buffer[i * 4] = pixel[0];
+            line_buffer[i * 4 + 1] = pixel[1];
+            line_buffer[i * 4 + 2] = pixel[2];
+            line_buffer[i * 4 + 3] = pixel[3];
+        }
+
+        // Escrever linha por linha
         for dy in 0..h {
-            for dx in 0..w {
-                self.put_pixel(x + dx, y + dy, color)?;
+            let py = y + dy;
+            if py >= self.info.height {
+                break;
             }
+
+            let offset = (py as usize * self.info.stride as usize) + (x as usize * 4);
+            let bytes_to_write = (line_width * 4).min(line_buffer.len());
+            write_framebuffer(offset, &line_buffer[..bytes_to_write])?;
         }
         Ok(())
     }
