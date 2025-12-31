@@ -209,7 +209,13 @@ impl Window {
             )
         };
 
+        crate::println!(
+            "[Window] Enviando CREATE_WINDOW ({}x{}) ao compositor...",
+            width,
+            height
+        );
         status_port.send(req_bytes, 0)?;
+        crate::println!("[Window] CREATE_WINDOW enviado. Aguardando resposta...");
 
         // 4. Receber response na NOSSA porta de eventos
         let mut resp_msg = ProtocolMessage { raw: [0; 256] };
@@ -221,11 +227,28 @@ impl Window {
         };
 
         // Bloqueante (timeout alto para garantir init)
-        event_port.recv(resp_bytes, 2000)?;
+        match event_port.recv(resp_bytes, 10000) {
+            Ok(len) if len < core::mem::size_of::<WindowCreatedResponse>() => {
+                crate::println!(
+                    "[Window] Erro: Resposta muito curta ou timeout (len={})",
+                    len
+                );
+                return Err(crate::syscall::SysError::ProtocolError);
+            }
+            Err(e) => {
+                crate::println!("[Window] Erro ao receber resposta: {:?}", e);
+                return Err(e);
+            }
+            Ok(_) => {} // Sucesso
+        }
 
         let resp = unsafe { resp_msg.win_resp };
 
         if resp.op != opcodes::WINDOW_CREATED {
+            crate::println!(
+                "[Window] Erro: Opcode inválido na resposta (op={})",
+                resp.op
+            );
             return Err(crate::syscall::SysError::ProtocolError);
         }
 
@@ -303,7 +326,12 @@ impl Window {
             )
         };
 
+        crate::println!(
+            "[Window] Enviando COMMIT_BUFFER (janela {}) ao compositor...",
+            self.id
+        );
         self.compositor_port.send(req_bytes, 0)?;
+        crate::println!("[Window] COMMIT_BUFFER enviado!");
         Ok(())
     }
 
