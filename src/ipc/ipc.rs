@@ -5,7 +5,7 @@
 use crate::io::Handle;
 use crate::syscall::{check_error, syscall1, syscall2, syscall4, SysResult};
 use crate::syscall::{SYS_CREATE_PORT, SYS_RECV_MSG, SYS_SEND_MSG};
-use crate::syscall::{SYS_PORT_CONNECT, SYS_SHM_CREATE, SYS_SHM_MAP};
+use crate::syscall::{SYS_PORT_CONNECT, SYS_SHM_CREATE, SYS_SHM_GET_SIZE, SYS_SHM_MAP};
 
 /// Flags de mensagem
 pub mod flags {
@@ -134,15 +134,15 @@ impl SharedMemory {
 
     /// Abre região existente pelo ID
     pub fn open(id: ShmId) -> SysResult<Self> {
+        // Primeiro, obter o tamanho real da região SHM
+        let size_ret = syscall1(SYS_SHM_GET_SIZE, id.0 as usize);
+        let size = check_error(size_ret)?;
+
+        // Agora mapear a região
         let ret = syscall2(SYS_SHM_MAP, id.0 as usize, 0);
         let addr = check_error(ret)? as *mut u8;
 
-        // Tamanho desconhecido, assume página
-        Ok(Self {
-            id,
-            addr,
-            size: 4096,
-        })
+        Ok(Self { id, addr, size })
     }
 
     /// ID da região

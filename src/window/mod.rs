@@ -169,12 +169,16 @@ impl Window {
 
             // Tenta criar
             let name_str = core::str::from_utf8(&port_name_buf[0..i]).unwrap_or("");
+            crate::println!("[Window] Tentando criar porta de resposta: '{}'", name_str);
+
             match Port::create(name_str, 16) {
                 Ok(p) => {
+                    crate::println!("[Window] Porta criada com sucesso: '{}'", name_str);
                     event_port = p;
                     break;
                 }
-                Err(_) => {
+                Err(e) => {
+                    crate::println!("[Window] Falha ao criar porta '{}': {:?}", name_str, e);
                     seed += 1;
                     // Tenta até 100 portas diferentes
                     if seed > 100 {
@@ -226,7 +230,21 @@ impl Window {
         }
 
         // 5. Mapear SHM
-        let shm = SharedMemory::open(ShmId(resp.shm_handle))?;
+        crate::println!("[Window] Mapeando SHM handle {}", resp.shm_handle);
+        let shm = match SharedMemory::open(ShmId(resp.shm_handle)) {
+            Ok(s) => {
+                crate::println!(
+                    "[Window] SHM mapeado em {:p}, size: {}",
+                    s.as_ptr(),
+                    s.size()
+                );
+                s
+            }
+            Err(e) => {
+                crate::println!("[Window] Erro ao mapear SHM: {:?}", e);
+                return Err(e);
+            }
+        };
 
         // Sucesso!
         Ok(Self {
@@ -246,11 +264,14 @@ impl Window {
         unsafe { core::slice::from_raw_parts_mut(ptr, len) }
     }
 
-    /// Desenha um pixel
+    /// Desenha um pixel (usando write_volatile para garantir commit na RAM)
     pub fn put_pixel(&mut self, x: u32, y: u32, color: u32) {
         if x < self.width && y < self.height {
             let idx = (y * self.width + x) as usize;
-            self.buffer()[idx] = color;
+            unsafe {
+                // self.buffer()[idx] = color;
+                core::ptr::write_volatile(&mut self.buffer()[idx], color);
+            }
         }
     }
 
@@ -265,6 +286,7 @@ impl Window {
 
     /// Notifica compositor que buffer foi atualizado
     pub fn present(&self) -> SysResult<()> {
+        // crate::println!("[Window] Presenting window {}", self.id); // Debug flood
         let req = CommitBufferRequest {
             op: opcodes::COMMIT_BUFFER,
             window_id: self.id,
