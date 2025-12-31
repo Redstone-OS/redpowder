@@ -2,6 +2,8 @@
 //!
 //! API de alto nível para acesso ao framebuffer.
 
+pub mod canvas;
+
 use crate::syscall::{check_error, syscall1, syscall3, SysResult};
 use crate::syscall::{SYS_FB_CLEAR, SYS_FB_INFO, SYS_FB_WRITE};
 
