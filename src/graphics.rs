@@ -30,6 +30,7 @@ impl Color {
     pub const RED: Color = Color(0xFF0000);
     pub const GREEN: Color = Color(0x00FF00);
     pub const BLUE: Color = Color(0x0000FF);
+    pub const YELLOW: Color = Color(0xFFFF00);
     pub const ORANGE: Color = Color(0xEE6A50); // Coral Redstone!
     pub const DARK_GRAY: Color = Color(0x333333);
     pub const LIGHT_GRAY: Color = Color(0xAAAAAA);
@@ -115,30 +116,41 @@ impl Framebuffer {
 
     /// Preenche um retângulo (otimizado - escreve linha inteira por vez)
     pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, color: Color) -> SysResult<()> {
-        // Criar buffer para uma linha inteira
-        // Limite para não estourar stack (máximo 1024 pixels por linha)
-        let line_width = w.min(1024) as usize;
-        let mut line_buffer = [0u8; 4096]; // 1024 pixels * 4 bytes
+        // Buffer local (Stack size limited)
+        const CHUNK_WIDTH: usize = 1024;
+        let mut line_buffer = [0u8; CHUNK_WIDTH * 4];
 
-        // Preencher buffer com a cor
+        // Prepara um chunk de cor
         let pixel = color.0.to_le_bytes();
-        for i in 0..line_width {
+        for i in 0..CHUNK_WIDTH {
             line_buffer[i * 4] = pixel[0];
             line_buffer[i * 4 + 1] = pixel[1];
             line_buffer[i * 4 + 2] = pixel[2];
             line_buffer[i * 4 + 3] = pixel[3];
         }
 
-        // Escrever linha por linha
+        // Para cada linha...
         for dy in 0..h {
             let py = y + dy;
             if py >= self.info.height {
                 break;
             }
 
-            let offset = (py as usize * self.info.stride as usize) + (x as usize * 4);
-            let bytes_to_write = (line_width * 4).min(line_buffer.len());
-            write_framebuffer(offset, &line_buffer[..bytes_to_write])?;
+            let mut pixels_remaining = w as usize;
+            let mut current_x = x as usize;
+
+            // Preencher a linha em chunks
+            while pixels_remaining > 0 {
+                let chunk_size = pixels_remaining.min(CHUNK_WIDTH);
+
+                let offset = (py as usize * self.info.stride as usize) + (current_x * 4);
+                let bytes_to_write = chunk_size * 4;
+
+                write_framebuffer(offset, &line_buffer[..bytes_to_write])?;
+
+                pixels_remaining -= chunk_size;
+                current_x += chunk_size;
+            }
         }
         Ok(())
     }
