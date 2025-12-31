@@ -346,7 +346,10 @@ impl Window {
                 )
             };
 
-            // Lê da porta de EVENTOS (Reply Port), não da porta do compositor
+            // TODO: Esta versão causa um loop infinito no Shell porque retorna Some(Unknown)
+            // mesmo quando a fila está vazia (len=0).
+            // O compositor nunca roda porque o Shell consome 100% da CPU em cooperative multitasking.
+            // Para corrigir: mudar Ok(_) para Ok(len) if len > 0.
             match self.event_port.recv(msg_bytes, 0) {
                 Ok(_) => {
                     // Decodificar mensagem
