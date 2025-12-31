@@ -17,7 +17,7 @@ pub const MAX_MSG_SIZE: usize = 256;
 
 // ============================================================================
 // ============================================================================
-// PROTOCOLO FIREFLY (Versão 2.0)
+// PROTOCOLO FIREFLY (Versão 2.1)
 // ============================================================================
 
 /// Identificadores de Mensagem (OpCodes)
@@ -43,12 +43,14 @@ use crate::event::{InputEvent, ResizeEvent};
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct CreateWindowRequest {
-    pub op: u32, // CREATE_WINDOW
+    pub op: u32,
     pub x: u32,
     pub y: u32,
     pub width: u32,
     pub height: u32,
     pub flags: u32,
+    /// Nome da porta onde o servidor deve responder
+    pub reply_port: [u8; 32],
 }
 
 #[repr(C)]
@@ -89,8 +91,6 @@ pub struct ErrorResponse {
     pub code: u32,
 }
 
-// ... (opcodes stay here)
-
 /// União de todas as mensagens possíveis (para leitura genérica)
 #[repr(C)]
 pub union ProtocolMessage {
@@ -100,7 +100,7 @@ pub union ProtocolMessage {
     pub win_resp: WindowCreatedResponse,
     pub input_evt: InputEvent,
     pub resize_evt: ResizeEvent,
-    pub raw: [u8; 64], // Padding para tamanho fixo máximo
+    pub raw: [u8; 256], // Padding aumentado para acomodar novas structs
 }
 
 // ============================================================================
@@ -114,15 +114,80 @@ pub struct Window {
     pub width: u32,
     pub height: u32,
     compositor_port: Port,
+    event_port: Port,
 }
 
 impl Window {
     /// Cria nova janela
     pub fn create(x: u32, y: u32, width: u32, height: u32) -> SysResult<Self> {
-        // Conectar ao compositor
-        let port = Port::connect(COMPOSITOR_PORT)?;
+        // 1. Criar porta de resposta única
+        // Tenta gerar nome único
+        let event_port;
+        let mut port_name_buf = [0u8; 32];
+        let mut seed = 0;
 
-        // Enviar request via ProtocolMessage
+        loop {
+            // "win.r.<seed>"
+            // Formatação manual (no_std)
+            let prefix = b"win.r.";
+
+            // Copia prefixo manualmente
+            let mut i = 0;
+            while i < prefix.len() {
+                port_name_buf[i] = prefix[i];
+                i += 1;
+            }
+
+            // Simples itoa para seed (0..999)
+            let mut n = seed;
+            if n == 0 {
+                port_name_buf[i] = b'0';
+                i += 1;
+            } else {
+                // conta digitos
+                let mut temp = n;
+                let mut digits = 0;
+                while temp > 0 {
+                    temp /= 10;
+                    digits += 1;
+                }
+
+                let mut pos = i + digits;
+                let end = pos;
+                while pos > i {
+                    port_name_buf[pos - 1] = b'0' + (n % 10) as u8;
+                    n /= 10;
+                    pos -= 1;
+                }
+                i = end;
+            }
+
+            // Zera o resto
+            for k in i..32 {
+                port_name_buf[k] = 0;
+            }
+
+            // Tenta criar
+            let name_str = core::str::from_utf8(&port_name_buf[0..i]).unwrap_or("");
+            match Port::create(name_str, 16) {
+                Ok(p) => {
+                    event_port = p;
+                    break;
+                }
+                Err(_) => {
+                    seed += 1;
+                    // Tenta até 100 portas diferentes
+                    if seed > 100 {
+                        return Err(crate::syscall::SysError::AlreadyExists);
+                    }
+                }
+            }
+        }
+
+        // 2. Conectar ao compositor
+        let status_port = Port::connect(COMPOSITOR_PORT)?;
+
+        // 3. Enviar request com nome da porta de resposta
         let req = CreateWindowRequest {
             op: opcodes::CREATE_WINDOW,
             x,
@@ -130,6 +195,7 @@ impl Window {
             width,
             height,
             flags: 0,
+            reply_port: port_name_buf,
         };
 
         let req_bytes = unsafe {
@@ -139,38 +205,37 @@ impl Window {
             )
         };
 
-        port.send(req_bytes, 0)?;
+        status_port.send(req_bytes, 0)?;
 
-        // Receber response
-        let mut resp = WindowCreatedResponse {
-            op: 0,
-            window_id: 0,
-            shm_handle: 0,
-            buffer_size: 0,
-        };
-
+        // 4. Receber response na NOSSA porta de eventos
+        let mut resp_msg = ProtocolMessage { raw: [0; 256] };
         let resp_bytes = unsafe {
             core::slice::from_raw_parts_mut(
-                &mut resp as *mut _ as *mut u8,
-                core::mem::size_of::<WindowCreatedResponse>(),
+                &mut resp_msg as *mut _ as *mut u8,
+                core::mem::size_of::<ProtocolMessage>(),
             )
         };
 
-        port.recv(resp_bytes, 0)?;
+        // Bloqueante (timeout alto para garantir init)
+        event_port.recv(resp_bytes, 2000)?;
+
+        let resp = unsafe { resp_msg.win_resp };
 
         if resp.op != opcodes::WINDOW_CREATED {
             return Err(crate::syscall::SysError::ProtocolError);
         }
 
-        // Mapear memória compartilhada retornada pelo servidor
+        // 5. Mapear SHM
         let shm = SharedMemory::open(ShmId(resp.shm_handle))?;
 
+        // Sucesso!
         Ok(Self {
             id: resp.window_id,
             shm,
             width,
             height,
-            compositor_port: port,
+            compositor_port: status_port,
+            event_port, // Mantém a porta aberta para receber eventos futuros (Input, Resize)
         })
     }
 
@@ -223,7 +288,7 @@ impl Window {
     /// Lê eventos da fila (não bloqueante)
     pub fn poll_events(&self) -> impl Iterator<Item = crate::event::Event> + '_ {
         core::iter::from_fn(move || {
-            let mut msg = crate::window::ProtocolMessage { raw: [0; 64] };
+            let mut msg = crate::window::ProtocolMessage { raw: [0; 256] };
             let msg_bytes = unsafe {
                 core::slice::from_raw_parts_mut(
                     &mut msg as *mut _ as *mut u8,
@@ -231,8 +296,8 @@ impl Window {
                 )
             };
 
-            // Tenta ler sem bloquear
-            match self.compositor_port.recv(msg_bytes, 0) {
+            // Lê da porta de EVENTOS (Reply Port), não da porta do compositor
+            match self.event_port.recv(msg_bytes, 0) {
                 Ok(_) => {
                     // Decodificar mensagem
                     unsafe {
@@ -241,11 +306,11 @@ impl Window {
                             opcodes::EVENT_RESIZE => {
                                 Some(crate::event::Event::Resize(msg.resize_evt))
                             }
-                            _ => Some(crate::event::Event::Unknown), // Ignora mensagens desconhecidas por enquanto
+                            _ => Some(crate::event::Event::Unknown),
                         }
                     }
                 }
-                Err(_) => None, // Sem mais mensagens ou erro
+                Err(_) => None,
             }
         })
     }

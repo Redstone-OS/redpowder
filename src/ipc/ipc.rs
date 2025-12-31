@@ -52,15 +52,43 @@ impl Port {
     }
 
     /// Recebe mensagem
+    /// Recebe mensagem
     pub fn recv(&self, buf: &mut [u8], timeout_ms: u64) -> SysResult<usize> {
-        let ret = syscall4(
-            SYS_RECV_MSG,
-            self.handle.raw() as usize,
-            buf.as_mut_ptr() as usize,
-            buf.len(),
-            timeout_ms as usize,
-        );
-        check_error(ret)
+        let mut waited = 0;
+        let poll_interval = 10;
+
+        loop {
+            let ret = syscall4(
+                SYS_RECV_MSG,
+                self.handle.raw() as usize,
+                buf.as_mut_ptr() as usize,
+                buf.len(),
+                0, // Kernel ignora timeout param por enquanto
+            );
+
+            match check_error(ret) {
+                Ok(len) => {
+                    if len > 0 {
+                        return Ok(len);
+                    }
+                    // Se len == 0, fila vazia
+                }
+                Err(e) => return Err(e),
+            }
+
+            if timeout_ms == 0 {
+                return Ok(0);
+            }
+
+            if waited >= timeout_ms {
+                // Timeout expirou, retorna 0 bytes (sem mensagem)
+                return Ok(0);
+            }
+
+            // Dormir e tentar novamente
+            let _ = crate::time::sleep(poll_interval);
+            waited += poll_interval;
+        }
     }
 
     /// Handle interno
