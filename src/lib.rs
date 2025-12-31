@@ -46,6 +46,8 @@ pub mod window;
 pub mod prelude {
     pub use crate::console::{poweroff, reboot};
     pub use crate::fs::File;
+    pub use crate::graphics::{Color, Framebuffer, FramebufferInfo};
+    pub use crate::input::{poll_mouse, KeyEvent, MouseState};
     pub use crate::io::{Handle, HandleRights};
     pub use crate::ipc::Port;
     pub use crate::print;
@@ -53,9 +55,6 @@ pub mod prelude {
     pub use crate::process::{exit, getpid, yield_now};
     pub use crate::syscall::{SysError, SysResult};
     pub use crate::time::sleep;
-    // Gráficos e Input
-    pub use crate::graphics::{Color, Framebuffer, FramebufferInfo};
-    pub use crate::input::{poll_mouse, KeyEvent, MouseState};
 }
 
 // === Re-exports ===

@@ -57,3 +57,41 @@ pub fn poll(fds: &mut [PollFd], timeout_ms: i64) -> SysResult<usize> {
     );
     check_error(ret)
 }
+
+// ============================================================================
+// Tipos de Eventos (High Level)
+// ============================================================================
+
+/// Tipos de Eventos de Input (Códigos)
+pub mod event_type {
+    pub const KEY_DOWN: u32 = 1;
+    pub const KEY_UP: u32 = 2;
+    pub const MOUSE_MOVE: u32 = 3;
+    pub const MOUSE_DOWN: u32 = 4;
+    pub const MOUSE_UP: u32 = 5;
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct InputEvent {
+    pub op: u32,         // EVENT_INPUT
+    pub event_type: u32, // event_type constants
+    pub param1: u32,     // KeyCode ou MouseX
+    pub param2: u32,     // Modifiers ou MouseY
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct ResizeEvent {
+    pub op: u32, // EVENT_RESIZE
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Enum de Eventos de Alto Nível para a API
+#[derive(Debug, Clone, Copy)]
+pub enum Event {
+    Input(InputEvent),
+    Resize(ResizeEvent),
+    Unknown,
+}

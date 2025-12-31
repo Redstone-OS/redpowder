@@ -30,6 +30,7 @@ pub enum SysError {
     LimitReached = -19,
     NotSupported = -20,
     BadAddress = -21,
+    ProtocolError = -22,
     Unknown = -127,
 }
 
@@ -58,6 +59,7 @@ impl SysError {
             -19 => Self::LimitReached,
             -20 => Self::NotSupported,
             -21 => Self::BadAddress,
+            -22 => Self::ProtocolError,
             _ => Self::Unknown,
         }
     }
