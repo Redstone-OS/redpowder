@@ -169,16 +169,19 @@ impl Window {
 
             // Tenta criar
             let name_str = core::str::from_utf8(&port_name_buf[0..i]).unwrap_or("");
-            crate::println!("[Window] Tentando criar porta de resposta: '{}'", name_str);
+            crate::println!(
+                "[RedPower] Tentando criar porta de resposta: '{}'",
+                name_str
+            );
 
             match Port::create(name_str, 16) {
                 Ok(p) => {
-                    crate::println!("[Window] Porta criada com sucesso: '{}'", name_str);
+                    crate::println!("[RedPower] Porta criada com sucesso: '{}'", name_str);
                     event_port = p;
                     break;
                 }
                 Err(e) => {
-                    crate::println!("[Window] Falha ao criar porta '{}': {:?}", name_str, e);
+                    crate::println!("[RedPower] Falha ao criar porta '{}': {:?}", name_str, e);
                     seed += 1;
                     // Tenta até 100 portas diferentes
                     if seed > 100 {
@@ -210,12 +213,12 @@ impl Window {
         };
 
         crate::println!(
-            "[Window] Enviando CREATE_WINDOW ({}x{}) ao compositor...",
+            "[RedPower] Enviando CREATE_WINDOW ({}x{}) ao compositor...",
             width,
             height
         );
         status_port.send(req_bytes, 0)?;
-        crate::println!("[Window] CREATE_WINDOW enviado. Aguardando resposta...");
+        crate::println!("[RedPower] CREATE_WINDOW enviado. Aguardando resposta...");
 
         // 4. Receber response na NOSSA porta de eventos
         let mut resp_msg = ProtocolMessage { raw: [0; 256] };
@@ -230,13 +233,13 @@ impl Window {
         match event_port.recv(resp_bytes, 10000) {
             Ok(len) if len < core::mem::size_of::<WindowCreatedResponse>() => {
                 crate::println!(
-                    "[Window] Erro: Resposta muito curta ou timeout (len={})",
+                    "[RedPower] Erro: Resposta muito curta ou timeout (len={})",
                     len
                 );
                 return Err(crate::syscall::SysError::ProtocolError);
             }
             Err(e) => {
-                crate::println!("[Window] Erro ao receber resposta: {:?}", e);
+                crate::println!("[RedPower] Erro ao receber resposta: {:?}", e);
                 return Err(e);
             }
             Ok(_) => {} // Sucesso
@@ -246,25 +249,25 @@ impl Window {
 
         if resp.op != opcodes::WINDOW_CREATED {
             crate::println!(
-                "[Window] Erro: Opcode inválido na resposta (op={})",
+                "[RedPower] Erro: Opcode inválido na resposta (op={})",
                 resp.op
             );
             return Err(crate::syscall::SysError::ProtocolError);
         }
 
         // 5. Mapear SHM
-        crate::println!("[Window] Mapeando SHM handle {}", resp.shm_handle);
+        crate::println!("[RedPower] Mapeando SHM handle {}", resp.shm_handle);
         let shm = match SharedMemory::open(ShmId(resp.shm_handle)) {
             Ok(s) => {
                 crate::println!(
-                    "[Window] SHM mapeado em {:p}, size: {}",
+                    "[RedPower] SHM mapeado em {:p}, size: {}",
                     s.as_ptr(),
                     s.size()
                 );
                 s
             }
             Err(e) => {
-                crate::println!("[Window] Erro ao mapear SHM: {:?}", e);
+                crate::println!("[RedPower] Erro ao mapear SHM: {:?}", e);
                 return Err(e);
             }
         };
@@ -309,7 +312,7 @@ impl Window {
 
     /// Notifica compositor que buffer foi atualizado
     pub fn present(&self) -> SysResult<()> {
-        // crate::println!("[Window] Presenting window {}", self.id); // Debug flood
+        // crate::println!("[RedPower] Presenting window {}", self.id); // Debug flood
         let req = CommitBufferRequest {
             op: opcodes::COMMIT_BUFFER,
             window_id: self.id,
@@ -327,11 +330,11 @@ impl Window {
         };
 
         crate::println!(
-            "[Window] Enviando COMMIT_BUFFER (janela {}) ao compositor...",
+            "[RedPower] Enviando COMMIT_BUFFER (janela {}) ao compositor...",
             self.id
         );
         self.compositor_port.send(req_bytes, 0)?;
-        crate::println!("[Window] COMMIT_BUFFER enviado!");
+        crate::println!("[RedPower] COMMIT_BUFFER enviado!");
         Ok(())
     }
 
