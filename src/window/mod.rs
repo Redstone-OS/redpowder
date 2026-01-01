@@ -329,12 +329,13 @@ impl Window {
             )
         };
 
-        crate::println!(
-            "[RedPower] Enviando COMMIT_BUFFER (janela {}) ao compositor...",
-            self.id
-        );
+        // crate::println!(
+        //     "[RedPower] Enviando COMMIT_BUFFER (janela {}) ao compositor...",
+        //     self.id
+        // );
         self.compositor_port.send(req_bytes, 0)?;
-        crate::println!("[RedPower] COMMIT_BUFFER enviado!");
+        // crate::println!("[RedPower] COMMIT_BUFFER enviado!");
+        // TODO: Debug
         Ok(())
     }
 
