@@ -346,12 +346,12 @@ impl Window {
                 )
             };
 
-            // TODO: Esta versão causa um loop infinito no Shell porque retorna Some(Unknown)
-            // mesmo quando a fila está vazia (len=0).
-            // O compositor nunca roda porque o Shell consome 100% da CPU em cooperative multitasking.
-            // Para corrigir: mudar Ok(_) para Ok(len) if len > 0.
+            // Fix do loop infinito: Verifica se realmente lemos algo (len > 0)
+            // O IPC (SysVMsg) pode retornar Ok(0) se não tiver mensagem?
+            // Na implementação atual do kernel, se não tiver mensagem e timeout=0, ele retorna Err(WouldBlock).
+            // Mas vamos garantir.
             match self.event_port.recv(msg_bytes, 0) {
-                Ok(_) => {
+                Ok(len) if len > 0 => {
                     // Decodificar mensagem
                     unsafe {
                         match msg.header {
@@ -359,11 +359,16 @@ impl Window {
                             opcodes::EVENT_RESIZE => {
                                 Some(crate::event::Event::Resize(msg.resize_evt))
                             }
-                            _ => Some(crate::event::Event::Unknown),
+                            _ => {
+                                // Se recebermos lixo ou op desconhecido, ignoramos e tentamos próxima?
+                                // Por enquanto retornamos Unknown para debug
+                                Some(crate::event::Event::Unknown)
+                            }
                         }
                     }
                 }
-                Err(_) => None,
+                // Se len == 0, ou Err (WouldBlock/Empty), paramos o iterador
+                _ => None,
             }
         })
     }
