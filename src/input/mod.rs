@@ -1,9 +1,8 @@
-//! # Módulo de Input
-//!
-//! API de alto nível para mouse e teclado.
+pub mod keycodes;
 
-use crate::syscall::{check_error, syscall1, syscall2, SysResult};
+pub use crate::syscall::{check_error, syscall1, syscall2, SysResult};
 use crate::syscall::{SYS_KEYBOARD_READ, SYS_MOUSE_READ};
+pub use keycodes::KeyCode;
 
 // ============================================================================
 // TIPOS - MOUSE
@@ -55,7 +54,7 @@ pub struct KeyEvent {
     pub scancode: u8,
     /// Tecla pressionada (true) ou solta (false)
     pub pressed: bool,
-    pub _pad: [u8; 2],
+    pub _pad: [u8; 6],
 }
 
 // ============================================================================

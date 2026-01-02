@@ -3,9 +3,10 @@
 //! Comunicação entre processos via portas e memória compartilhada.
 
 use crate::io::Handle;
-use crate::syscall::{check_error, syscall1, syscall2, syscall4, SysResult};
-use crate::syscall::{SYS_CREATE_PORT, SYS_RECV_MSG, SYS_SEND_MSG};
-use crate::syscall::{SYS_PORT_CONNECT, SYS_SHM_CREATE, SYS_SHM_GET_SIZE, SYS_SHM_MAP};
+use crate::syscall::{
+    check_error, syscall1, syscall2, syscall4, SysResult, SYS_CREATE_PORT, SYS_HANDLE_DUP,
+    SYS_PORT_CONNECT, SYS_RECV_MSG, SYS_SEND_MSG, SYS_SHM_CREATE, SYS_SHM_GET_SIZE, SYS_SHM_MAP,
+};
 
 /// Flags de mensagem
 pub mod flags {
@@ -97,10 +98,24 @@ impl Port {
     }
 }
 
+impl Clone for Port {
+    fn clone(&self) -> Self {
+        let ret = syscall2(
+            SYS_HANDLE_DUP,
+            self.handle.raw() as usize,
+            0xFFFFFFFFFFFFFFFF,
+        );
+        let new_handle = Handle::from_raw(check_error(ret).unwrap_or(0) as u32);
+        Self { handle: new_handle }
+    }
+}
+
 impl Drop for Port {
     fn drop(&mut self) {
-        use crate::syscall::{syscall1, SYS_HANDLE_CLOSE};
-        let _ = syscall1(SYS_HANDLE_CLOSE, self.handle.raw() as usize);
+        if self.handle.is_valid() {
+            use crate::syscall::{syscall1, SYS_HANDLE_CLOSE};
+            let _ = syscall1(SYS_HANDLE_CLOSE, self.handle.raw() as usize);
+        }
     }
 }
 

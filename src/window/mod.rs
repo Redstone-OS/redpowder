@@ -26,6 +26,7 @@ pub mod opcodes {
     pub const CREATE_WINDOW: u32 = 0x01;
     pub const DESTROY_WINDOW: u32 = 0x02;
     pub const COMMIT_BUFFER: u32 = 0x03;
+    pub const INPUT_UPDATE: u32 = 0x04;
 
     // Server -> Client
     pub const WINDOW_CREATED: u32 = 0x10;
