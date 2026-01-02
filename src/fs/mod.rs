@@ -34,7 +34,7 @@ pub mod path;
 pub mod types;
 
 // Re-exports principais
-pub use dir::{Dir, ReadDir};
+pub use dir::{list_dir, Dir, ReadDir};
 pub use file::File;
 pub use ops::{chdir, exists, getcwd, is_dir, is_file, stat};
 pub use types::{
