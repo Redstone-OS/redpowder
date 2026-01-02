@@ -61,3 +61,10 @@ pub fn sleep(ms: u64) -> SysResult<u64> {
 pub fn monotonic() -> SysResult<TimeSpec> {
     clock_get(ClockId::Monotonic)
 }
+
+/// Obtém tempo desde boot em milissegundos
+///
+/// Versão simplificada de monotonic() para uso comum.
+pub fn clock() -> SysResult<u64> {
+    monotonic().map(|ts| ts.to_millis())
+}
