@@ -29,11 +29,13 @@ pub mod opcodes {
     pub const INPUT_UPDATE: u32 = 0x04;
     pub const MINIMIZE_WINDOW: u32 = 0x05;
     pub const RESTORE_WINDOW: u32 = 0x06;
+    pub const REGISTER_TASKBAR: u32 = 0x07;
 
     // Server -> Client
     pub const WINDOW_CREATED: u32 = 0x10;
     pub const EVENT_INPUT: u32 = 0x20;
     pub const EVENT_RESIZE: u32 = 0x21;
+    pub const EVENT_WINDOW_LIFECYCLE: u32 = 0x22;
     pub const ERROR: u32 = 0xFF;
 }
 
@@ -54,6 +56,16 @@ pub struct CreateWindowRequest {
     pub flags: u32,
     /// Nome da porta onde o servidor deve responder
     pub reply_port: [u8; 32],
+    /// Título da janela / Nome da aplicação
+    pub title: [u8; 64],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct RegisterTaskbarRequest {
+    pub op: u32,
+    /// Porta para receber eventos de lifecycle
+    pub listener_port: [u8; 32],
 }
 
 #[repr(C)]
@@ -101,6 +113,23 @@ pub struct ErrorResponse {
     pub code: u32,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct WindowLifecycleEvent {
+    pub op: u32,         // EVENT_WINDOW_LIFECYCLE
+    pub event_type: u32, // 0=Create, 1=Destroy, 2=Minimize, 3=Restore, 4=Focus
+    pub window_id: u32,
+    pub title: [u8; 64],
+}
+
+pub mod lifecycle_events {
+    pub const CREATED: u32 = 0;
+    pub const DESTROYED: u32 = 1;
+    pub const MINIMIZED: u32 = 2;
+    pub const RESTORED: u32 = 3;
+    pub const FOCUSED: u32 = 4;
+}
+
 /// União de todas as mensagens possíveis (para leitura genérica)
 #[repr(C)]
 pub union ProtocolMessage {
@@ -109,9 +138,11 @@ pub union ProtocolMessage {
     pub buf_req: CommitBufferRequest,
     pub destroy_req: DestroyWindowRequest,
     pub op_req: WindowOpRequest,
+    pub reg_taskbar_req: RegisterTaskbarRequest,
     pub win_resp: WindowCreatedResponse,
     pub input_evt: InputEvent,
     pub resize_evt: ResizeEvent,
+    pub lifecycle_evt: WindowLifecycleEvent,
     pub raw: [u8; 256], // Padding aumentado para acomodar novas structs
 }
 
@@ -137,6 +168,7 @@ impl Window {
         width: u32,
         height: u32,
         flags: u32,
+        title: &str,
     ) -> SysResult<Self> {
         // 1. Criar porta de resposta única
         // Tenta gerar nome único
@@ -215,6 +247,13 @@ impl Window {
         let status_port = Port::connect(COMPOSITOR_PORT)?;
 
         // 3. Enviar request com nome da porta de resposta
+        let mut title_buf = [0u8; 64];
+        let bytes = title.as_bytes();
+        let len = bytes.len().min(64);
+        for i in 0..len {
+            title_buf[i] = bytes[i];
+        }
+
         let req = CreateWindowRequest {
             op: opcodes::CREATE_WINDOW,
             x,
@@ -223,6 +262,7 @@ impl Window {
             height,
             flags,
             reply_port: port_name_buf,
+            title: title_buf,
         };
 
         let req_bytes = unsafe {
@@ -297,8 +337,8 @@ impl Window {
     }
 
     /// Cria nova janela padrão
-    pub fn create(x: u32, y: u32, width: u32, height: u32) -> SysResult<Self> {
-        Self::create_with_flags(x, y, width, height, 0)
+    pub fn create(x: u32, y: u32, width: u32, height: u32, title: &str) -> SysResult<Self> {
+        Self::create_with_flags(x, y, width, height, 0, title)
     }
 
     /// Obtém ponteiro para buffer de pixels
