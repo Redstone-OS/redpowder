@@ -13,7 +13,7 @@
 //! |--------|--------|
 //! | `syscall` | Invocação de syscalls (inline asm) |
 //! | `console` | print!, println!, reboot, poweroff |
-//! | `fs` | Arquivos (open, read, write, close) |
+//! | `fs` | Arquivos e diretórios (File, Dir, stat) |
 //! | `process` | Processos (exit, spawn, yield) |
 //! | `mem` | Memória (alloc, free, map) |
 //! | `ipc` | IPC (Port, send, recv) |
@@ -24,6 +24,31 @@
 //! | `graphics` | Framebuffer, cores, desenho |
 //! | `input` | Mouse, teclado |
 //! | `window` | Janelas |
+//!
+//! ## Exemplo Rápido
+//!
+//! ```rust
+//! #![no_std]
+//! use redpowder::prelude::*;
+//! use redpowder::fs::{File, Dir};
+//!
+//! fn main() {
+//!     // Ler arquivo
+//!     if let Ok(file) = File::open("/apps/config.txt") {
+//!         let mut buf = [0u8; 256];
+//!         if let Ok(bytes) = file.read(&mut buf) {
+//!             println!("Lido: {} bytes", bytes);
+//!         }
+//!     }
+//!
+//!     // Listar diretório
+//!     if let Ok(dir) = Dir::open("/apps") {
+//!         for entry in dir.entries() {
+//!             println!("{}", entry.name());
+//!         }
+//!     }
+//! }
+//! ```
 
 #![no_std]
 
@@ -43,9 +68,11 @@ pub mod time;
 pub mod window;
 
 // === Prelude ===
+/// Prelude com os tipos e funções mais comuns
 pub mod prelude {
     pub use crate::console::{poweroff, reboot};
-    pub use crate::fs::File;
+    pub use crate::fs::{chdir, exists, getcwd, is_dir, is_file, stat};
+    pub use crate::fs::{Dir, DirEntry, File, FileStat, OpenFlags};
     pub use crate::graphics::{Color, Framebuffer, FramebufferInfo};
     pub use crate::input::{poll_mouse, KeyEvent, MouseState};
     pub use crate::io::{Handle, HandleRights};
