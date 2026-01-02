@@ -27,6 +27,8 @@ pub mod opcodes {
     pub const DESTROY_WINDOW: u32 = 0x02;
     pub const COMMIT_BUFFER: u32 = 0x03;
     pub const INPUT_UPDATE: u32 = 0x04;
+    pub const MINIMIZE_WINDOW: u32 = 0x05;
+    pub const RESTORE_WINDOW: u32 = 0x06;
 
     // Server -> Client
     pub const WINDOW_CREATED: u32 = 0x10;
@@ -72,6 +74,13 @@ pub struct CommitBufferRequest {
     pub height: u32, // Dirty Rect H
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct WindowOpRequest {
+    pub op: u32,
+    pub window_id: u32,
+}
+
 // ----------------------------------------------------------------------------
 // RESPONSES (Server -> Client)
 // ----------------------------------------------------------------------------
@@ -98,6 +107,8 @@ pub union ProtocolMessage {
     pub header: u32, // Apenas para ler o OpCode
     pub create_req: CreateWindowRequest,
     pub buf_req: CommitBufferRequest,
+    pub destroy_req: DestroyWindowRequest,
+    pub op_req: WindowOpRequest,
     pub win_resp: WindowCreatedResponse,
     pub input_evt: InputEvent,
     pub resize_evt: ResizeEvent,
@@ -400,5 +411,48 @@ impl Window {
 
         self.compositor_port.send(req_bytes, 0)?;
         Ok(())
+    }
+
+    /// Minimiza a janela.
+    pub fn minimize(&self) -> SysResult<()> {
+        let req = WindowOpRequest {
+            op: opcodes::MINIMIZE_WINDOW,
+            window_id: self.id,
+        };
+
+        let req_bytes = unsafe {
+            core::slice::from_raw_parts(
+                &req as *const _ as *const u8,
+                core::mem::size_of::<WindowOpRequest>(),
+            )
+        };
+
+        self.compositor_port.send(req_bytes, 0)?;
+        Ok(())
+    }
+
+    /// Restaura a janela de um estado minimizado.
+    pub fn restore(&self) -> SysResult<()> {
+        let req = WindowOpRequest {
+            op: opcodes::RESTORE_WINDOW,
+            window_id: self.id,
+        };
+
+        let req_bytes = unsafe {
+            core::slice::from_raw_parts(
+                &req as *const _ as *const u8,
+                core::mem::size_of::<WindowOpRequest>(),
+            )
+        };
+
+        self.compositor_port.send(req_bytes, 0)?;
+        Ok(())
+    }
+}
+
+impl Drop for Window {
+    fn drop(&mut self) {
+        // Tentar destruir a janela ao sair do escopo
+        let _ = self.destroy();
     }
 }
