@@ -119,8 +119,14 @@ pub struct Window {
 }
 
 impl Window {
-    /// Cria nova janela
-    pub fn create(x: u32, y: u32, width: u32, height: u32) -> SysResult<Self> {
+    /// Cria nova janela com flags específicas
+    pub fn create_with_flags(
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        flags: u32,
+    ) -> SysResult<Self> {
         // 1. Criar porta de resposta única
         // Tenta gerar nome único
         let event_port;
@@ -170,19 +176,21 @@ impl Window {
 
             // Tenta criar
             let name_str = core::str::from_utf8(&port_name_buf[0..i]).unwrap_or("");
+            /*
             crate::println!(
                 "[RedPower] Tentando criar porta de resposta: '{}'",
                 name_str
             );
+            */
 
             match Port::create(name_str, 16) {
                 Ok(p) => {
-                    crate::println!("[RedPower] Porta criada com sucesso: '{}'", name_str);
+                    // crate::println!("[RedPower] Porta criada com sucesso: '{}'", name_str);
                     event_port = p;
                     break;
                 }
                 Err(e) => {
-                    crate::println!("[RedPower] Falha ao criar porta '{}': {:?}", name_str, e);
+                    // crate::println!("[RedPower] Falha ao criar porta '{}': {:?}", name_str, e);
                     seed += 1;
                     // Tenta até 100 portas diferentes
                     if seed > 100 {
@@ -202,7 +210,7 @@ impl Window {
             y,
             width,
             height,
-            flags: 0,
+            flags,
             reply_port: port_name_buf,
         };
 
@@ -214,12 +222,12 @@ impl Window {
         };
 
         crate::println!(
-            "[RedPower] Enviando CREATE_WINDOW ({}x{}) ao compositor...",
+            "[RedPower] Enviando CREATE_WINDOW ({}x{}, flags={:#x}) ao compositor...",
             width,
-            height
+            height,
+            flags
         );
         status_port.send(req_bytes, 0)?;
-        crate::println!("[RedPower] CREATE_WINDOW enviado. Aguardando resposta...");
 
         // 4. Receber response na NOSSA porta de eventos
         let mut resp_msg = ProtocolMessage { raw: [0; 256] };
@@ -257,16 +265,9 @@ impl Window {
         }
 
         // 5. Mapear SHM
-        crate::println!("[RedPower] Mapeando SHM handle {}", resp.shm_handle);
+        // crate::println!("[RedPower] Mapeando SHM handle {}", resp.shm_handle);
         let shm = match SharedMemory::open(ShmId(resp.shm_handle)) {
-            Ok(s) => {
-                crate::println!(
-                    "[RedPower] SHM mapeado em {:p}, size: {}",
-                    s.as_ptr(),
-                    s.size()
-                );
-                s
-            }
+            Ok(s) => s,
             Err(e) => {
                 crate::println!("[RedPower] Erro ao mapear SHM: {:?}", e);
                 return Err(e);
@@ -282,6 +283,11 @@ impl Window {
             compositor_port: status_port,
             event_port, // Mantém a porta aberta para receber eventos futuros (Input, Resize)
         })
+    }
+
+    /// Cria nova janela padrão
+    pub fn create(x: u32, y: u32, width: u32, height: u32) -> SysResult<Self> {
+        Self::create_with_flags(x, y, width, height, 0)
     }
 
     /// Obtém ponteiro para buffer de pixels
@@ -376,5 +382,23 @@ impl Window {
                 _ => None,
             }
         })
+    }
+
+    /// Destrói a janela e libera os recursos no compositor.
+    pub fn destroy(&self) -> SysResult<()> {
+        let req = DestroyWindowRequest {
+            op: opcodes::DESTROY_WINDOW,
+            window_id: self.id,
+        };
+
+        let req_bytes = unsafe {
+            core::slice::from_raw_parts(
+                &req as *const _ as *const u8,
+                core::mem::size_of::<DestroyWindowRequest>(),
+            )
+        };
+
+        self.compositor_port.send(req_bytes, 0)?;
+        Ok(())
     }
 }
