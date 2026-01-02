@@ -18,7 +18,7 @@ bench = false
 doctest = false
 
 [dependencies]
-gfx_types = { path = "../libs/gfx_types" }
+gfx_types = { path = "../libs/gfx_types", version = "0.1.0" }
 
 [features]
 default = []
