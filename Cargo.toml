@@ -15,6 +15,7 @@ categories = ["no-std", "os"]
 harness = false
 test = false
 bench = false
+doctest = false
 
 [dependencies]
 gfx_types = { path = "../libs/gfx_types" }
