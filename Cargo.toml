@@ -1,6 +1,6 @@
 [package]
 name = "redpowder"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["MikeLanDSBR <contato@mikelandsbr.com.br>"]
 edition = "2021"
 description = "SDK / Devkit para Redstone OS"
@@ -18,7 +18,9 @@ bench = false
 doctest = false
 
 [dependencies]
-gfx_types = { path = "../gfx_types", version = "0.1.0" }
+gfx_types = { path = "../../lib/gfx_types", version = "0.2.0" }
+rdsmath = { path = "../../lib/rdsmath", version = "0.1.0" }
 
 [features]
 default = []
+alloc = ["gfx_types/alloc"]
