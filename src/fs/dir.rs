@@ -20,6 +20,8 @@
 //!     .collect();
 //! ```
 
+// TODO: Revisar no futuro
+#[allow(unused)]
 use super::types::{DirEntry, OpenFlags, O_DIRECTORY, O_RDONLY};
 use crate::io::Handle;
 use crate::syscall::{
