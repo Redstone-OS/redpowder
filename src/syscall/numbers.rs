@@ -41,6 +41,15 @@ pub const SYS_FREE: usize = 0x11;
 pub const SYS_MAP: usize = 0x12;
 pub const SYS_UNMAP: usize = 0x13;
 pub const SYS_MPROTECT: usize = 0x14;
+pub const SYS_MEMINFO: usize = 0x15;
+pub const SYS_ALLOC_AT: usize = 0x16;
+pub const SYS_SHM_CREATE: usize = 0x17;
+pub const SYS_SHM_ATTACH: usize = 0x18;
+pub const SYS_SHM_RELEASE: usize = 0x19;
+pub const SYS_CLOSE_MAPPING: usize = 0x1A;
+pub const SYS_MSYNC: usize = 0x1B;
+pub const SYS_MADVISE: usize = 0x1C;
+pub const SYS_SHM_GET_SIZE: usize = 0x1D;
 
 // =============================================================================
 // HANDLES (0x20 - 0x2F)
@@ -59,10 +68,7 @@ pub const SYS_SEND_MSG: usize = 0x31;
 pub const SYS_RECV_MSG: usize = 0x32;
 pub const SYS_FUTEX_WAIT: usize = 0x33;
 pub const SYS_FUTEX_WAKE: usize = 0x34;
-pub const SYS_SHM_CREATE: usize = 0x35;
-pub const SYS_SHM_MAP: usize = 0x36;
-pub const SYS_PORT_CONNECT: usize = 0x37;
-pub const SYS_SHM_GET_SIZE: usize = 0x38;
+pub const SYS_PORT_CONNECT: usize = 0x35;
 
 // =============================================================================
 // GRÁFICOS / INPUT (0x40 - 0x4F)

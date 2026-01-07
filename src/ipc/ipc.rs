@@ -5,7 +5,7 @@
 use crate::io::Handle;
 use crate::syscall::{
     check_error, syscall1, syscall2, syscall4, SysResult, SYS_CREATE_PORT, SYS_HANDLE_DUP,
-    SYS_PORT_CONNECT, SYS_RECV_MSG, SYS_SEND_MSG, SYS_SHM_CREATE, SYS_SHM_GET_SIZE, SYS_SHM_MAP,
+    SYS_PORT_CONNECT, SYS_RECV_MSG, SYS_SEND_MSG, SYS_SHM_ATTACH, SYS_SHM_CREATE, SYS_SHM_GET_SIZE,
 };
 
 /// Flags de mensagem
@@ -141,7 +141,7 @@ impl SharedMemory {
         let id = ShmId(check_error(ret)? as u64);
 
         // Mapear automaticamente
-        let ret = syscall2(SYS_SHM_MAP, id.0 as usize, 0);
+        let ret = syscall2(SYS_SHM_ATTACH, id.0 as usize, 0);
         let addr = check_error(ret)? as *mut u8;
 
         Ok(Self { id, addr, size })
@@ -154,7 +154,7 @@ impl SharedMemory {
         let size = check_error(size_ret)?;
 
         // Agora mapear a região
-        let ret = syscall2(SYS_SHM_MAP, id.0 as usize, 0);
+        let ret = syscall2(SYS_SHM_ATTACH, id.0 as usize, 0);
         let addr = check_error(ret)? as *mut u8;
 
         Ok(Self { id, addr, size })
